@@ -172,7 +172,7 @@ jobs:
       - name: Download and Copy Icon
         run: |
           curl -L -o ${{ env.EXT_NAME }}-icon.png https://raw.githubusercontent.com/supervisely-ecosystem/SlicerConnectToSupervisely/master/Images/icon_png_128x128.png
-          cp ${{ env.EXT_NAME }}-icon.png ${{ env.REVISION }}-macosx-amd64-${{ env.EXT_NAME }}/Slicer.app/Contents/Extensions-${{ env.REVISION }}/${{ env.EXT_NAME }}/${{ env.EXT_NAME }}-icon.png
+          cp ${{ env.EXT_NAME }}-icon.png ${{ env.REVISION }}-macosx-amd64-${{ env.EXT_NAME }}/Slicer.app/Contents/Extensions-${{ env.REVISION }}/${{ env.EXT_NAME }}-icon.png
           cp ${{ env.EXT_NAME }}-icon.png ${{ env.REVISION }}-linux-amd64-${{ env.EXT_NAME }}/${{ env.EXT_NAME }}-icon.png
           cp ${{ env.EXT_NAME }}-icon.png ${{ env.REVISION }}-win-amd64-${{ env.EXT_NAME }}/${{ env.EXT_NAME }}-icon.png
         shell: bash
