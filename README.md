@@ -175,7 +175,7 @@ The user can configure the working directory where data will be stored locally w
 
 ## Release Notes
 
-#### v0.0.1 - v0.0.4
+#### v0.0.1 - v0.0.5
 
 ☝️ Does not support:
 

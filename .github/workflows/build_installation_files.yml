@@ -7,16 +7,11 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: gha-runner-supervisely-ecosystem
 
     steps:
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.8
-
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Extract Tag Name on Release
         id: extract_tag
@@ -33,10 +28,57 @@ jobs:
           echo "TAG_NAME=$latest_release" >> $GITHUB_ENV
         if: github.event_name == 'workflow_dispatch'
 
+      - name: Check Release Description for VERSION and REVISION (Workflow Dispatch)
+        id: check_release_description_dispatch
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          repository=${{ github.repository }}
+          release_body=$(gh api -H "Accept: application/vnd.github+json" -H "X-GitHub-Api-Version: 2022-11-28" "/repos/$repository/releases/tags/$TAG_NAME" | jq -r '.body')
+
+          # Extract VERSION from release description
+          version_from_desc=$(echo "$release_body" | grep -i "^VERSION:" | sed 's/VERSION://I' | xargs)
+
+          # Extract REVISION from release description
+          revision_from_desc=$(echo "$release_body" | grep -i "^REVISION:" | sed 's/REVISION://I' | xargs)
+
+          if [[ -n "$version_from_desc" && -n "$revision_from_desc" ]]; then
+            echo "VERSION_FROM_DESC=$version_from_desc" >> $GITHUB_ENV
+            echo "REVISION_FROM_DESC=$revision_from_desc" >> $GITHUB_ENV
+            echo "Found VERSION: $version_from_desc and REVISION: $revision_from_desc in release description"
+          else
+            echo "VERSION and REVISION not found in release description"
+          fi
+        shell: bash
+
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install requests beautifulsoup4
+
+      - name: Check Release Description for VERSION and REVISION
+        id: check_release_description
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          release_body="${{ github.event.release.body }}"
+
+          # Extract VERSION from release description
+          version_from_desc=$(echo "$release_body" | grep -i "^VERSION:" | sed 's/VERSION://I' | xargs)
+
+          # Extract REVISION from release description
+          revision_from_desc=$(echo "$release_body" | grep -i "^REVISION:" | sed 's/REVISION://I' | xargs)
+
+          if [[ -n "$version_from_desc" && -n "$revision_from_desc" ]]; then
+            echo "VERSION_FROM_DESC=$version_from_desc" >> $GITHUB_ENV
+            echo "REVISION_FROM_DESC=$revision_from_desc" >> $GITHUB_ENV
+            echo "Found VERSION: $version_from_desc and REVISION: $revision_from_desc in release description"
+          else
+            echo "VERSION and REVISION not found in release description"
+          fi
+        shell: bash
 
       - name: Get Slicer Stable Revision and Version
         id: get_slicer_info
@@ -60,8 +102,16 @@ jobs:
 
       - name: Set Version and Revision as ENV Variables
         run: |
-          echo "VERSION=$(echo ${{ env.SLICER_INFO }} | cut -d' ' -f1)" >> $GITHUB_ENV
-          echo "REVISION=$(echo ${{ env.SLICER_INFO }} | cut -d' ' -f2)" >> $GITHUB_ENV
+          if [[ -n "${{ env.VERSION_FROM_DESC }}" && -n "${{ env.REVISION_FROM_DESC }}" ]]; then
+            echo "VERSION=${{ env.VERSION_FROM_DESC }}" >> $GITHUB_ENV
+            echo "REVISION=${{ env.REVISION_FROM_DESC }}" >> $GITHUB_ENV
+            echo "Using VERSION and REVISION from release description"
+          else
+            echo "VERSION=$(echo ${{ env.SLICER_INFO }} | cut -d' ' -f1)" >> $GITHUB_ENV
+            echo "REVISION=$(echo ${{ env.SLICER_INFO }} | cut -d' ' -f2)" >> $GITHUB_ENV
+            echo "Using VERSION and REVISION from download.slicer.org"
+          fi
+
           if [[ "${{ env.VERSION }}" == "unknown" ]]; then
             echo "Version is unknown"
             exit 1
