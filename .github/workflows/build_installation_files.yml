@@ -170,6 +170,12 @@ jobs:
           cp ${{ env.EXT_NAME }}.s4ext ${{ env.DIR2_M }}
         shell: bash
 
+      - name: Install zip utility
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zip
+        shell: bash
+
       - name: Archive Files
         run: |
           zip -r ${{ env.MAIN_DIR_W }}-${{ env.DATE }}.zip ${{ env.MAIN_DIR_W }}
