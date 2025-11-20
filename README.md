@@ -10,8 +10,8 @@
   <a href="#Release-Notes">Release Notes</a>  
 </p>
 
-![](https://img.shields.io/badge/3D%20Slicer-%205.6.2-C0D4E5)
-![](https://img.shields.io/badge/ConnectToSupervisely-0.0.4-FF3C89)
+![](https://img.shields.io/badge/3D%20Slicer-%205.8.1-C0D4E5)
+![](https://img.shields.io/badge/ConnectToSupervisely-0.0.5-FF3C89)
 [![](https://img.shields.io/badge/slack-chat-green.svg?logo=slack)](https://supervisely.com/slack)
 
 </div>
@@ -26,8 +26,8 @@ You can read more about Labeling Jobs in our blog post [Mastering Labeling Jobs:
 
 The functionality of this extension relies on utilizing the [Supervisely Python SDK](https://supervisely.readthedocs.io/en/latest/index.html), which, in turn, requires:
 
-- **Python 3.8** or later.
-- **3D Slicer 5.4.0** or later.
+- **Python 3.8** to **3.9**.
+- **3D Slicer 5.4.0** to **5.8.1**.
 - An active **Internet Connection**
 
 ## Labeling Jobs Annotating Module Preview
