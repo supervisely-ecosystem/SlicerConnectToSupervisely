@@ -25,6 +25,7 @@ from moduleLib import (
     restore_libraries,
 )
 from moduleLib.baseLogic import DEFAULT_WORK_DIR, ENV_FILE_PATH, BaseLogic
+import logging
 
 # ------------------------------------ labelingJobsAnnotating ------------------------------------ #
 
@@ -426,7 +427,12 @@ class labelingJobsAnnotatingLogic(BaseLogic):
         projectIds = [job.project_id for job in self.jobList]
         filteredProjectIds = []
         for projectId in list(set(projectIds)):
-            if self.api.project.get_info_by_id(projectId).type == "volumes":
+            projectInfo = self.api.project.get_info_by_id(projectId)
+            if projectInfo is None:
+                logging.info(f"It seems project with ID {projectId} archived, deleted or inaccessible. Skipping job for this project.")
+                continue
+                
+            if projectInfo.type == "volumes":
                 filteredProjectIds.append(projectId)
 
         self.jobList = [job for job in self.jobList if job.project_id in filteredProjectIds]
