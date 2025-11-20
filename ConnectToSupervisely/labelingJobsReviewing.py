@@ -26,7 +26,6 @@ from moduleLib import (
     restore_libraries,
 )
 from moduleLib.baseLogic import DEFAULT_WORK_DIR, ENV_FILE_PATH, BaseLogic
-import logging
 
 # -------------------------------------- labelingJobsReviewing ----------------------------------- #
 
@@ -471,7 +470,6 @@ class labelingJobsReviewingLogic(BaseLogic):
         for projectId in list(set(projectIds)):
             projectInfo = self.api.project.get_info_by_id(projectId)
             if projectInfo is None:
-                logging.info(f"It seems project with ID {projectId} archived, deleted or inaccessible. Skipping job for this project.")
                 continue
                 
             if projectInfo.type == "volumes":
