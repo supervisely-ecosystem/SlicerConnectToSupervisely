@@ -10,6 +10,11 @@ jobs:
     runs-on: gha-runner-supervisely-ecosystem
 
     steps:
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: 3.12
+
       - name: Checkout repository
         uses: actions/checkout@v6
 
