@@ -121,11 +121,6 @@ jobs:
             echo "Version is unknown"
             exit 1
           fi
-
-          # Create short version (X.X) for directory paths
-          VERSION_SHORT=$(echo "${{ env.VERSION }}" | cut -d'.' -f1,2)
-          echo "VERSION_SHORT=$VERSION_SHORT" >> $GITHUB_ENV
-          echo "Using VERSION_SHORT: $VERSION_SHORT for directory paths"
         shell: bash
 
       - name: Get Extension Name
@@ -137,17 +132,16 @@ jobs:
         run: |
           echo "DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
           echo "MAIN_DIR_W=${{ env.REVISION }}-win-amd64-${{ env.EXT_NAME }}" >> $GITHUB_ENV
-          echo "DIR1_W=${{ env.REVISION }}-win-amd64-${{ env.EXT_NAME }}/lib/Slicer-${{ env.VERSION_SHORT }}/qt-scripted-modules/" >> $GITHUB_ENV
-          echo "DIR2_W=${{ env.REVISION }}-win-amd64-${{ env.EXT_NAME }}/share/Slicer-${{ env.VERSION_SHORT }}/" >> $GITHUB_ENV
+          echo "DIR1_W=${{ env.REVISION }}-win-amd64-${{ env.EXT_NAME }}/lib/Slicer-${{ env.VERSION }}/qt-scripted-modules/" >> $GITHUB_ENV
+          echo "DIR2_W=${{ env.REVISION }}-win-amd64-${{ env.EXT_NAME }}/share/Slicer-${{ env.VERSION }}/" >> $GITHUB_ENV
 
           echo "MAIN_DIR_L=${{ env.REVISION }}-linux-amd64-${{ env.EXT_NAME }}" >> $GITHUB_ENV
-          echo "DIR1_L=${{ env.REVISION }}-linux-amd64-${{ env.EXT_NAME }}/lib/Slicer-${{ env.VERSION_SHORT }}/qt-scripted-modules/" >> $GITHUB_ENV
-          echo "DIR2_L=${{ env.REVISION }}-linux-amd64-${{ env.EXT_NAME }}/share/Slicer-${{ env.VERSION_SHORT }}/" >> $GITHUB_ENV
+          echo "DIR1_L=${{ env.REVISION }}-linux-amd64-${{ env.EXT_NAME }}/lib/Slicer-${{ env.VERSION }}/qt-scripted-modules/" >> $GITHUB_ENV
+          echo "DIR2_L=${{ env.REVISION }}-linux-amd64-${{ env.EXT_NAME }}/share/Slicer-${{ env.VERSION }}/" >> $GITHUB_ENV
 
           echo "MAIN_DIR_M=${{ env.REVISION }}-macosx-amd64-${{ env.EXT_NAME }}" >> $GITHUB_ENV
-          echo "DIR1_M=${{ env.REVISION }}-macosx-amd64-${{ env.EXT_NAME }}/Slicer.app/Contents/Extensions-${{ env.REVISION }}/${{ env.EXT_NAME }}/lib/Slicer-${{ env.VERSION_SHORT }}/qt-scripted-modules/" >> $GITHUB_ENV
-          echo "DIR2_M=${{ env.REVISION }}-macosx-amd64-${{ env.EXT_NAME }}/Slicer.app/Contents/Extensions-${{ env.REVISION }}/${{ env.EXT_NAME }}/share/Slicer-${{ env.VERSION_SHORT }}/" >> $GITHUB_ENV
-
+          echo "DIR1_M=${{ env.REVISION }}-macosx-amd64-${{ env.EXT_NAME }}/Slicer.app/Contents/Extensions-${{ env.REVISION }}/${{ env.EXT_NAME }}/lib/Slicer-${{ env.VERSION }}/qt-scripted-modules/" >> $GITHUB_ENV
+          echo "DIR2_M=${{ env.REVISION }}-macosx-amd64-${{ env.EXT_NAME }}/Slicer.app/Contents/Extensions-${{ env.REVISION }}/${{ env.EXT_NAME }}/share/Slicer-${{ env.VERSION }}/" >> $GITHUB_ENV
         shell: bash
 
       - name: Create Directory Structure
@@ -178,9 +172,9 @@ jobs:
       - name: Download and Copy Icon
         run: |
           curl -L -o ${{ env.EXT_NAME }}-icon.png https://raw.githubusercontent.com/supervisely-ecosystem/SlicerConnectToSupervisely/master/Images/icon_png_128x128.png
-          cp ${{ env.EXT_NAME }}-icon.png ${{ env.MAIN_DIR_W }}/${{ env.EXT_NAME }}-icon.png
-          cp ${{ env.EXT_NAME }}-icon.png ${{ env.MAIN_DIR_L }}/${{ env.EXT_NAME }}-icon.png
-          cp ${{ env.EXT_NAME }}-icon.png ${{ env.MAIN_DIR_M }}/${{ env.EXT_NAME }}-icon.png
+          cp ${{ env.EXT_NAME }}-icon.png ${{ env.REVISION }}-macosx-amd64-${{ env.EXT_NAME }}/Slicer.app/Contents/Extensions-${{ env.REVISION }}/${{ env.EXT_NAME }}/${{ env.EXT_NAME }}-icon.png
+          cp ${{ env.EXT_NAME }}-icon.png ${{ env.REVISION }}-linux-amd64-${{ env.EXT_NAME }}/${{ env.EXT_NAME }}-icon.png
+          cp ${{ env.EXT_NAME }}-icon.png ${{ env.REVISION }}-win-amd64-${{ env.EXT_NAME }}/${{ env.EXT_NAME }}-icon.png
         shell: bash
 
       - name: Install zip utility

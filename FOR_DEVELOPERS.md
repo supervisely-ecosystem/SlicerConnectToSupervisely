@@ -7,7 +7,7 @@ When creating a release, you can specify custom Slicer VERSION and REVISION in t
 To use this feature, add the following lines to your release description:
 
 ```
-VERSION: 5.6.2
+VERSION: 5.6
 REVISION: 32438
 ```
 
