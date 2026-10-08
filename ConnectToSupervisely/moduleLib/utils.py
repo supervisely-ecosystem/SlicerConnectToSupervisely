@@ -10,7 +10,7 @@ import slicer
 RESTORE_LIB_FILE = os.path.join(Path.home(), "supervisely_slicer_installed_packages.json")
 
 # The Supervisely SDK release this module installs and is tested against.
-SUPERVISELY_VERSION = "6.74.36"
+SUPERVISELY_VERSION = "6.74.45"
 
 # ------------------------------------- Decorators ------------------------------------- #
 
