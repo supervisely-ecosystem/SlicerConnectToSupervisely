@@ -10,7 +10,7 @@ import slicer
 RESTORE_LIB_FILE = os.path.join(Path.home(), "supervisely_slicer_installed_packages.json")
 
 # The Supervisely SDK release this module installs and is tested against.
-SUPERVISELY_VERSION = "6.74.36"
+SUPERVISELY_VERSION = "6.74.45"
 
 # ------------------------------------- Decorators ------------------------------------- #
 
@@ -119,147 +119,120 @@ def get_installed_version(package_name):
         return None
 
 
-def get_dependency_conflicts(target_version):
-    """Return the pinned Supervisely release's requirements that clash with what is installed.
+def get_missing_requirements():
+    """Return the installed Supervisely release's requirements whose package is not installed.
 
-    The metadata is read for `target_version`, which is the release this module actually
-    installs, and not for whatever happens to be the latest release on PyPI.
-
-    Environment markers are evaluated rather than matched as text, so requirements that do
-    not apply to the running interpreter are skipped instead of being reported as conflicts.
+    Requirements are read from the installed package's own metadata. Environment markers are
+    evaluated, so requirements that do not apply to the running interpreter are skipped.
+    Packages that are already installed are left as they are, whatever version the SDK declares.
     """
+    from importlib.metadata import requires
+
     from packaging.requirements import Requirement
-    from packaging.specifiers import SpecifierSet
-    from packaging.version import Version
-    from requests import get
 
-    response = get(f"https://pypi.org/pypi/supervisely/{target_version}/json", timeout=60)
-    response.raise_for_status()
-    requires_dist = response.json()["info"]["requires_dist"] or []
-
-    conflicts = []
-    for requirement_string in requires_dist:
+    missing = []
+    for requirement_string in requires("supervisely") or []:
         requirement = Requirement(requirement_string)
         if requirement.marker is not None and not requirement.marker.evaluate({"extra": ""}):
             continue
-        specifier = str(requirement.specifier)
-        installed_version = get_installed_version(requirement.name)
-        if (
-            installed_version
-            and specifier
-            and Version(installed_version) not in SpecifierSet(specifier, prereleases=True)
-        ):
-            conflicts.append((requirement.name, installed_version, specifier))
-    return conflicts
-
-
-def format_dependency_conflicts(conflicts):
-    """Render conflicts as the lines shown in the dialog."""
-    return "".join(
-        f" - [{name}] installed: {installed_version}, "
-        f"required: {specifier.replace('<', '&lt;').replace('>', '&gt;')}\n"
-        for name, installed_version, specifier in conflicts
-    )
+        if get_installed_version(requirement.name) is None:
+            extras = f"[{','.join(sorted(requirement.extras))}]" if requirement.extras else ""
+            missing.append(f"{requirement.name}{extras}{requirement.specifier}")
+    return missing
 
 
 def install_supervisely():
-    """Install the pinned Supervisely release over conflicting packages, recording what it
-    changed so that `restore_libraries` can roll those packages back afterwards."""
+    """Install the pinned Supervisely release without touching the packages 3D Slicer already has.
+
+    The SDK goes in with --no-deps, then only its requirements that are not installed at all.
+    Any package that changed is recorded so that `restore_libraries` can roll it back afterwards.
+    """
+    import importlib
+    import shlex
+
+    # An earlier install may already have changed packages. Keep the versions it recorded as
+    # the ones to restore, so this install does not overwrite them with the changed ones.
+    previous_before = {}
+    if os.path.exists(RESTORE_LIB_FILE):
+        with open(RESTORE_LIB_FILE, "r") as f:
+            previous_before = json.load(f).get("before_installation", {})
+
     before_installation = get_installed_libraries_info()
-    slicer.util.pip_install(f"supervisely=={SUPERVISELY_VERSION}")
-    after_installation = get_installed_libraries_info()
-    backup_installed_libraries_info(before_installation, after_installation)
+    try:
+        if get_installed_version("supervisely") != SUPERVISELY_VERSION:
+            slicer.util.pip_install(f"--no-deps supervisely=={SUPERVISELY_VERSION}")
+            importlib.invalidate_caches()
+        missing = get_missing_requirements()
+        if missing:
+            slicer.util.pip_install(" ".join(shlex.quote(r) for r in missing))
+    finally:
+        after_installation = get_installed_libraries_info()
+        before_installation = {**before_installation, **previous_before}
+        changed = any(
+            lib != "supervisely" and lib in before_installation and before_installation[lib] != version
+            for lib, version in after_installation.items()
+        )
+        if previous_before or changed:
+            backup_installed_libraries_info(before_installation, after_installation)
 
 
 def import_supervisely(module):
     from moduleLib import SuperviselyDialog
 
+    installed_version = get_installed_version("supervisely")
+    try:
+        missing = get_missing_requirements() if installed_version == SUPERVISELY_VERSION else []
+    except Exception as e:
+        logging.warning(f"Failed to check Supervisely requirements: {e}")
+        missing = []
+
+    if installed_version != SUPERVISELY_VERSION or missing:
+        # Checked before the import, so an older release that still imports is upgraded too.
+        if installed_version is None:
+            state = f"{SUPERVISELY_VERSION} to be installed"
+        elif installed_version != SUPERVISELY_VERSION:
+            state = f"{SUPERVISELY_VERSION} to be installed (installed: {installed_version})"
+        else:
+            state = f"{SUPERVISELY_VERSION} to have its missing requirements installed"
+        SuperviselyDialog(
+            f"""
+This module requires Python package <a href='https://pypi.org/project/supervisely/'>Supervisely</a> {state}.
+It will be installed automatically now. Packages already installed in 3D Slicer are not changed.
+
+3D Slicer will be restarted after installation.
+""",
+            type="info",
+        )
+        try:
+            install_supervisely()
+            slicer.util.restart()
+        except Exception:
+            SuperviselyDialog(
+                """\nFailed to install <a href='https://pypi.org/project/supervisely/'>Supervisely</a> package.
+3D Slicer will be restarted now and the installation will be retried.
+\nIf the problem persists, please install the package manually or contact us for help.
+<a href='https://supervisely.com/slack/'>Supervisely Slack community</a>""",
+                "error",
+            )
+            slicer.util.restart()
+        return
+
     try:
         from supervisely import Api
     except Exception as import_error:
-        installed_version = get_installed_version("supervisely")
-
-        if installed_version == SUPERVISELY_VERSION:
-            # The required version is already installed and still does not import.
-            # Installing it again would change nothing and would bring this dialog back on
-            # every launch, so report what actually went wrong instead of asking again.
-            SuperviselyDialog(
-                f"""
+        # The required version and its requirements are installed and it still does not import.
+        # Installing it again would change nothing and would bring this dialog back on every
+        # launch, so report what actually went wrong instead.
+        SuperviselyDialog(
+            f"""
 The installed <a href='https://pypi.org/project/supervisely/'>Supervisely</a> package ({installed_version}) is the version this module requires, but it could not be imported:
 
 {import_error}
 
 \nPlease resolve this manually or contact us for help.
 <a href='https://supervisely.com/slack/'>Supervisely Slack community</a>""",
-                "error",
-            )
-            return
-
-        if installed_version is None:
-            state = "to be installed"
-        else:
-            # Installed, but unusable on this interpreter. Reinstalling the same version is
-            # what made this dialog reappear on every launch, so install the pinned one instead.
-            state = (
-                f"{SUPERVISELY_VERSION} to be installed: "
-                f"the installed version ({installed_version}) could not be imported"
-            )
-
-        message = format_dependency_conflicts(get_dependency_conflicts(SUPERVISELY_VERSION))
-
-        if message:
-            if SuperviselyDialog(
-                f"""
-This module requires Python package <a href='https://pypi.org/project/supervisely/'>Supervisely</a> {state}.
-But it has conflicting dependencies with the installed packages:
-\n{message}
-Installing will change these packages for the whole 3D Slicer installation. The "Restore Libraries" button in this module rolls that back.
-
-Do you want to install <a href='https://pypi.org/project/supervisely/'>Supervisely</a> package anyway?\n""",
-                "confirm",
-            ):
-                try:
-                    install_supervisely()
-                    slicer.util.restart()
-                except Exception:
-                    SuperviselyDialog(
-                        """
-Failed to install <a href='https://pypi.org/project/supervisely/'>Supervisely</a> package.
-\nPlease install it manually and resolve conflicts with the dependencies before opening the module or contact us for help.
-<a href='https://supervisely.com/slack/'>Supervisely Slack community</a>
-
-\n3D Slicer will be restarted now automatically.""",
-                        "error",
-                    )
-                    slicer.util.restart()
-            else:
-                SuperviselyDialog(
-                    """
-If you need help with the installation, please contact us.
-<a href='https://supervisely.com/slack/'>Supervisely Slack community</a>"""
-                )
-        else:
-            SuperviselyDialog(
-                f"""
-This module requires Python package <a href='https://pypi.org/project/supervisely/'>Supervisely</a> {state}.
-It will be installed automatically now.
-
-3D Slicer will be restarted after installation.
-""",
-                type="info",
-            )
-            try:
-                slicer.util.pip_install(f"supervisely=={SUPERVISELY_VERSION}")
-                slicer.util.restart()
-            except Exception:
-                SuperviselyDialog(
-                    """\nFailed to install <a href='https://pypi.org/project/supervisely/'>Supervisely</a> package.
-3D Slicer will be restarted now and the installation will be retried.
-\nIf the problem persists, please install the package manually or contact us for help.
-<a href='https://supervisely.com/slack/'>Supervisely Slack community</a>""",
-                    "error",
-                )
-                slicer.util.restart()
+            "error",
+        )
     else:
         module.ready_to_start = True
 

@@ -780,16 +780,20 @@ Do you want to continue?""",
         If tempPath is not None, download to tempPath and don't create keyIdMap and projectMeta.
         """
 
+        # Drop a header left by an earlier download so it cannot block this one.
+        self.api.headers.pop("x-job-id", None)
         self.api.add_header("x-job-id", str(self.activeJob.id))
-        VolumeProject.download(
-            self.api,
-            self.activeJob.project_id,
-            self.savePath,
-            [self.activeJob.dataset_id],
-            download_volumes=downloadVolumes,
-            progress_cb=self.incrementProgressBar,
-        )
-        self.api.pop_header("x-job-id")
+        try:
+            VolumeProject.download(
+                self.api,
+                self.activeJob.project_id,
+                self.savePath,
+                [self.activeJob.dataset_id],
+                download_volumes=downloadVolumes,
+                progress_cb=self.incrementProgressBar,
+            )
+        finally:
+            self.api.headers.pop("x-job-id", None)
         self.ui.progressBar.reset()
         self.keyIdMap = KeyIdMap.load_json(f"{self.savePath}/key_id_map.json")
         with open(f"{self.savePath}/meta.json", "r") as f:
